@@ -1,10 +1,17 @@
 """Terraformオペレーション"""
 import subprocess
-import sys
 
-from config import JOB_NAME, PROJECT_ID, REGION, REPO_NAME, SECRET_NAME
+from config import JOB_NAME, PROJECT_ID, REGION, REPO_NAME, SECRET_NAME, dispatch
 
 TF_DIR = "terraform"
+
+INFRA_TARGETS = [
+    "-target=ec_deployment.hello",
+    "-target=google_artifact_registry_repository.hello",
+    "-target=google_secret_manager_secret.elastic_api_key",
+    "-target=google_secret_manager_secret_version.elastic_api_key",
+    "-target=google_secret_manager_secret_iam_member.hello",
+]
 
 
 def tf_run(args: list[str]) -> None:
@@ -17,15 +24,6 @@ def init() -> None:
 
 def plan() -> None:
     tf_run(["plan"])
-
-
-INFRA_TARGETS = [
-    "-target=ec_deployment.hello",
-    "-target=google_artifact_registry_repository.hello",
-    "-target=google_secret_manager_secret.elastic_api_key",
-    "-target=google_secret_manager_secret_version.elastic_api_key",
-    "-target=google_secret_manager_secret_iam_member.hello",
-]
 
 
 def apply() -> None:
@@ -54,16 +52,11 @@ def import_resources() -> None:
 
 
 if __name__ == "__main__":
-    action = sys.argv[1] if len(sys.argv) > 1 else ""
-    actions = {
+    dispatch({
         "init": init,
         "plan": plan,
         "apply": apply,
         "apply-infra": apply_infra,
         "destroy": destroy,
         "import": import_resources,
-    }
-    if action not in actions:
-        print(f"Usage: {sys.argv[0]} [{'/'.join(actions)}]")
-        sys.exit(1)
-    actions[action]()
+    })
