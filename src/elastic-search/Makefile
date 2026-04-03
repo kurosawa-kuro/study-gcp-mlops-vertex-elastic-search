@@ -15,8 +15,8 @@ SCRIPTS := PYTHONPATH=scripts python3
 
 .PHONY: run install build build-gcr push docker-run clean \
         create-repo auth-docker create-secret create-job \
-        execute logs deploy cleanup-gcp \
-        tf-init tf-plan tf-apply tf-import tf-destroy help
+        execute logs deploy deploy-all destroy-all cleanup-gcp \
+        tf-init tf-plan tf-apply tf-apply-infra tf-import tf-destroy help
 
 # ===== ローカル =====
 
@@ -66,6 +66,15 @@ deploy:
 	$(MAKE) create-secret
 	$(MAKE) create-job
 
+deploy-all:
+	$(MAKE) tf-apply-infra
+	$(MAKE) push
+	$(MAKE) tf-apply
+
+destroy-all:
+	$(MAKE) tf-destroy
+	$(MAKE) clean
+
 cleanup-gcp:
 	$(SCRIPTS) scripts/gcp_ops.py cleanup
 
@@ -79,6 +88,9 @@ tf-plan:
 
 tf-apply:
 	$(SCRIPTS) scripts/tf_ops.py apply
+
+tf-apply-infra:
+	$(SCRIPTS) scripts/tf_ops.py apply-infra
 
 tf-import:
 	$(SCRIPTS) scripts/tf_ops.py import
@@ -103,14 +115,17 @@ help:
 	@echo "  make push         Artifact Registryへpush"
 	@echo "  make create-secret Secret Manager登録"
 	@echo "  make create-job   Cloud Run Job作成"
-	@echo "  make deploy       一括デプロイ (push→secret→job)"
+	@echo "  make deploy       一括デプロイ (push→secret→job) ※gcloud版"
+	@echo "  make deploy-all   Terraform全構築 (infra→push→job)"
+	@echo "  make destroy-all  全リソース削除 (terraform destroy→docker clean)"
 	@echo "  make execute      Cloud Run Job実行"
 	@echo "  make logs         ログ確認"
 	@echo ""
 	@echo "Terraform:"
 	@echo "  make tf-init      terraform init"
 	@echo "  make tf-plan      差分確認"
-	@echo "  make tf-apply     適用"
+	@echo "  make tf-apply     全リソース適用"
+	@echo "  make tf-apply-infra インフラのみ適用（Cloud Run Job除外）"
 	@echo "  make tf-import    既存リソースをstateにimport"
 	@echo "  make tf-destroy   全リソース削除"
 	@echo ""

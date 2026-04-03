@@ -19,8 +19,21 @@ def plan() -> None:
     tf_run(["plan"])
 
 
+INFRA_TARGETS = [
+    "-target=ec_deployment.hello",
+    "-target=google_artifact_registry_repository.hello",
+    "-target=google_secret_manager_secret.elastic_api_key",
+    "-target=google_secret_manager_secret_version.elastic_api_key",
+    "-target=google_secret_manager_secret_iam_member.hello",
+]
+
+
 def apply() -> None:
     tf_run(["apply", "-auto-approve"])
+
+
+def apply_infra() -> None:
+    tf_run(["apply", "-auto-approve"] + INFRA_TARGETS)
 
 
 def destroy() -> None:
@@ -46,6 +59,7 @@ if __name__ == "__main__":
         "init": init,
         "plan": plan,
         "apply": apply,
+        "apply-infra": apply_infra,
         "destroy": destroy,
         "import": import_resources,
     }

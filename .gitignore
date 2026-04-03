@@ -3,7 +3,9 @@
 *.tfstate
 *.tfstate.backup
 *.tfvars
+*.tfplan
 terraform/credentials.json
+.terraform.lock.hcl
 
 # ML outputs
 outputs/
