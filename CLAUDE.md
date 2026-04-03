@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MLOps学習プロジェクト。Cloud Runベースで（Kubernetes不使用）MLパイプラインを構築する。
+MLOps・検索基盤の学習プロジェクト。Cloud Runベースで（Kubernetes不使用）MLパイプラインと検索基盤を構築する。
 GCPプロジェクト: `mlops-dev-a`、リージョン: `asia-northeast1`
 
 ## Architecture
@@ -25,24 +25,35 @@ GCPプロジェクト: `mlops-dev-a`、リージョン: `asia-northeast1`
    ├── BigQueryから最良モデルパス取得（リトライ付き）
    ├── GCSからモデルロード（リトライ付き）
    └── POST /predict で推論レスポンス
+
+[Cloud Run Job (elastic-search)]
+   ├── Elastic Cloud 接続（Secret Manager経由でAPIキー取得）
+   ├── ドキュメント投入・検索
+   └── クリーンアップ
+
+[Elastic Cloud]
+   ├── Elasticsearch（データ格納・全文検索）
+   └── Kibana（管理UI・APIキー発行）
 ```
 
 - **batch/**: Cloud Run Job - データ取得→学習→評価(MLflow)→モデル保存(GCS)→ログ出力(GCS)→メトリクス投入(BigQuery)
 - **api/**: Cloud Run Service - BigQueryで最良モデル選択→GCSからロード→FastAPIで推論レスポンス
+- **elastic-search/**: Cloud Run Job - Elastic Cloud接続確認（Terraform管理、.envで設定一元管理）
 - **terraform/**: GCS, BigQuery, Cloud Run (Job/Service), Artifact Registry, Cloud Scheduler のIaC定義
 - **scripts/**: 共通ユーティリティ(core.py)、監視(batch/API)、ドリフト検知、デプロイ、リセット
+- **notebooks/**: Vertex AI学習用ノートブック
 
 ## Tech Stack
 
-- **ML**: scikit-learn, MLflow, pandas
+- **ML**: scikit-learn, MLflow, pandas, Vertex AI
 - **API**: FastAPI (Cloud Run Service)
+- **検索**: Elastic Cloud (Elasticsearch + Kibana)
 - **Data**: BigQuery（評価メトリクス蓄積・最良モデル選択・90日リテンション）
-- **Infra**: Cloud Run (Job/Service), GCS, Artifact Registry, Cloud Scheduler
-- **IaC**: Terraform
+- **Infra**: Cloud Run (Job/Service), GCS, Artifact Registry, Cloud Scheduler, Secret Manager
+- **IaC**: Terraform（GCP + Elastic Cloud）
 - **CI/CD**: GitHub Actions（batch/API/Terraform 3本）
 - **監視**: Discord通知（batch監視・API健全性・モデルドリフト検知）
 - **ログ**: JSON構造化ログ（Cloud Logging互換）
-- **将来**: Vertex AI
 
 ## GCP Setup
 

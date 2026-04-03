@@ -1,18 +1,20 @@
 
-# study-gcp-mlops
+# study-gcp-mlops-vertex-elastic-search
 
 ---
 
 ## 1. 目的
 
 ```text
-MLOpsをCloud Runベースで理解・実装する
+GCP上でMLOps・検索基盤を理解・実装する
 
 ・Kubernetesを使わない構成でMLパイプラインを構築する
 ・バッチ処理主体のMLフロー（学習・評価・モデル保存）を確立する
 ・BigQueryで評価メトリクスを蓄積し、最良モデルを機械的に選択する
 ・推論APIで最良モデルを自動ロードし、MLOpsの一周を完成させる
 ・監視・ドリフト検知で運用品質を担保する
+・Vertex AIによるマネージドML基盤を学習する
+・Elastic Cloudで検索基盤を構築・Terraform管理する
 ```
 
 ---
@@ -26,6 +28,8 @@ GCP
 - BigQuery（評価メトリクス蓄積・最良モデル選択・90日リテンション）
 - Artifact Registry
 - Cloud Scheduler（定期実行）
+- Secret Manager（APIキー管理）
+- Vertex AI（マネージドML基盤）
 
 ML
 - scikit-learn（California Housing / RandomForest）
@@ -35,8 +39,12 @@ ML
 API
 - FastAPI（Cloud Run Service / 推論API）
 
+検索基盤
+- Elastic Cloud（Elasticsearch + Kibana）
+- ec Terraform provider
+
 IaC
-- Terraform
+- Terraform（GCP / Elastic Cloud）
 
 CI/CD
 - GitHub Actions（batch / API / Terraform 3本）
@@ -45,9 +53,6 @@ CI/CD
 - Discord通知（batch監視・API健全性・モデルドリフト検知）
 - JSON構造化ログ（Cloud Logging互換）
 - エラーリトライ（exponential backoff）
-
-将来
-- Vertex AI
 ```
 
 ---
@@ -75,6 +80,15 @@ CI/CD
 [Cloud Scheduler]
    └── 毎日 9:00 JST に batch を定期実行
 
+[Cloud Run Job（elastic-search）]
+   ├── Elastic Cloud 接続
+   ├── ドキュメント投入・検索
+   └── クリーンアップ
+
+[Elastic Cloud]
+   ├── Elasticsearch（データ格納・検索）
+   └── Kibana（管理UI）
+
 [GitHub Actions]
    ├── batch: main push(src/batch) → test → build → push → Cloud Run Job 更新
    ├── api:   main push(src/api)   → test → build → push → Cloud Run Service 更新
@@ -91,16 +105,20 @@ CI/CD
 ## 4. ディレクトリ構成
 
 ```text
-study-gcp-mlops/
-├── .github/workflows/  # CI/CD（batch / API / Terraform）
+study-gcp-mlops-vertex-elastic-search/
+├── .github/workflows/      # CI/CD（batch / API / Terraform）
 ├── src/
-│   ├── batch/          # Cloud Run Job（ML学習パイプライン）
-│   └── api/            # Cloud Run Service（FastAPI推論API）
-├── terraform/          # インフラ定義（Terraform）
-├── makefiles/          # Makefile分割ファイル
-├── scripts/            # 共通ユーティリティ・監視・デプロイスクリプト
-├── docs/               # 手順書・ドキュメント
-├── Makefile            # ビルド・デプロイコマンド
+│   ├── batch/              # Cloud Run Job（ML学習パイプライン）
+│   ├── api/                # Cloud Run Service（FastAPI推論API）
+│   └── elastic-search/     # Cloud Run Job（Elastic Cloud接続確認）
+│       ├── scripts/            # オペレーション用スクリプト
+│       └── terraform/          # Elastic Cloud + GCPリソース定義
+├── terraform/              # MLOps系インフラ定義（Terraform）
+├── makefiles/              # Makefile分割ファイル
+├── scripts/                # 共通ユーティリティ・監視・デプロイスクリプト
+├── notebooks/              # Vertex AI学習用ノートブック
+├── docs/                   # 手順書・ドキュメント
+├── Makefile                # ビルド・デプロイコマンド
 └── README.md
 ```
 
@@ -117,13 +135,23 @@ gcloud init                    # GCPログイン & プロジェクト設定
 make gcp-setup                 # API有効化・SA権限・Docker認証
 ```
 
-### デプロイ & 実行
+### MLOps（batch / API）
 
 ```bash
 make deploy          # 全体デプロイ（batch + API）
 make batch-run       # Cloud Run Job実行
 make batch-logs      # 実行履歴確認
 make api-url         # APIのURL表示
+```
+
+### Elastic Search
+
+```bash
+cd src/elastic-search
+make deploy-all      # 全構築（Elastic Cloud + Artifact Registry + Secret Manager + push + Cloud Run Job）
+make execute         # Cloud Run Job実行
+make logs            # ログ確認
+make destroy-all     # 全削除（課金停止）
 ```
 
 ### ローカル開発
