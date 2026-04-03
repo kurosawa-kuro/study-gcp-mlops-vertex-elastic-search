@@ -1,5 +1,5 @@
 output "elasticsearch_endpoint" {
-  value = ec_deployment.hello.elasticsearch[0].https_endpoint
+  value = ec_deployment.hello.elasticsearch.https_endpoint
 }
 
 output "cloud_run_job_name" {
@@ -7,5 +7,5 @@ output "cloud_run_job_name" {
 }
 
 output "artifact_registry_url" {
-  value = "${var.region}-docker.pkg.dev/${var.project_id}/hello-elastic"
+  value = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repo_name}"
 }

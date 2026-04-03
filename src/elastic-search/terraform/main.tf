@@ -1,7 +1,7 @@
 # Elastic Cloud デプロイメント
 resource "ec_deployment" "hello" {
-  name                   = "my-deployment"
-  region                 = "gcp-asia-northeast1"
+  name                   = var.deployment_name
+  region                 = "gcp-${var.region}"
   version                = "9.3.2"
   deployment_template_id = "gcp-storage-optimized"
 
@@ -21,14 +21,14 @@ resource "ec_deployment" "hello" {
 
 # Artifact Registry
 resource "google_artifact_registry_repository" "hello" {
-  repository_id = "hello-elastic"
+  repository_id = var.repo_name
   location      = var.region
   format        = "DOCKER"
 }
 
 # Secret Manager
 resource "google_secret_manager_secret" "elastic_api_key" {
-  secret_id = "elastic-api-key"
+  secret_id = var.secret_name
   replication {
     user_managed {
       replicas { location = var.region }
@@ -52,17 +52,17 @@ data "google_project" "project" {}
 
 # Cloud Run Job
 resource "google_cloud_run_v2_job" "hello" {
-  name     = "es-hello"
+  name     = var.job_name
   location = var.region
 
   template {
     template {
       containers {
-        image = "${var.region}-docker.pkg.dev/${var.project_id}/hello-elastic/es-hello:latest"
+        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repo_name}/${var.job_name}:latest"
 
         env {
           name  = "ELASTIC_CLOUD_URL"
-          value = ec_deployment.hello.elasticsearch[0].https_endpoint
+          value = ec_deployment.hello.elasticsearch.https_endpoint
         }
         env {
           name = "ELASTIC_API_KEY"

@@ -1,16 +1,22 @@
-PROJECT_ID   := mlops-dev-a
-REGION       := asia-northeast1
-IMAGE_NAME   := es-hello
-REPO_NAME    := hello-elastic
-IMAGE_URI    := $(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(REPO_NAME)/$(IMAGE_NAME):latest
-
 include .env
 export
 
-.PHONY: run install build docker-run clean \
-        create-repo auth-docker build-gcr push create-secret \
-        create-job execute logs deploy cleanup-gcp \
-        tf-init tf-plan tf-apply tf-destroy help
+# Terraform用環境変数（TF_VAR_で自動認識）
+export TF_VAR_project_id            := $(PROJECT_ID)
+export TF_VAR_region                := $(REGION)
+export TF_VAR_deployment_name       := $(DEPLOYMENT_NAME)
+export TF_VAR_job_name              := $(JOB_NAME)
+export TF_VAR_repo_name             := $(REPO_NAME)
+export TF_VAR_secret_name           := $(SECRET_NAME)
+export TF_VAR_elastic_api_key       := $(ELASTIC_API_KEY)
+export TF_VAR_elastic_cloud_api_key := $(ELASTIC_CLOUD_API_KEY)
+
+SCRIPTS := PYTHONPATH=scripts python3
+
+.PHONY: run install build build-gcr push docker-run clean \
+        create-repo auth-docker create-secret create-job \
+        execute logs deploy cleanup-gcp \
+        tf-init tf-plan tf-apply tf-import tf-destroy help
 
 # ===== ローカル =====
 
@@ -21,91 +27,64 @@ install:
 	pip install -r requirements.txt
 
 build:
-	docker build -t $(IMAGE_NAME) .
+	$(SCRIPTS) scripts/docker_ops.py build
 
-docker-run: build
-	docker run --env-file .env $(IMAGE_NAME)
+build-gcr:
+	$(SCRIPTS) scripts/docker_ops.py build-gcr
+
+push:
+	$(SCRIPTS) scripts/docker_ops.py push
+
+docker-run:
+	$(SCRIPTS) scripts/docker_ops.py docker-run
 
 clean:
-	docker rmi $(IMAGE_NAME) 2>/dev/null || true
+	$(SCRIPTS) scripts/docker_ops.py clean
 
 # ===== GCP デプロイ =====
 
 create-repo:
-	gcloud artifacts repositories create $(REPO_NAME) \
-	  --repository-format=docker \
-	  --location=$(REGION) \
-	  --description="Hello Elastic Docker images"
+	$(SCRIPTS) scripts/gcp_ops.py create-repo
 
 auth-docker:
-	gcloud auth configure-docker $(REGION)-docker.pkg.dev
-
-build-gcr:
-	docker build -t $(IMAGE_URI) .
-
-push: build-gcr
-	docker push $(IMAGE_URI)
+	$(SCRIPTS) scripts/gcp_ops.py auth-docker
 
 create-secret:
-	echo -n "$(ELASTIC_API_KEY)" | \
-	  gcloud secrets create elastic-api-key \
-	  --data-file=- \
-	  --replication-policy=user-managed \
-	  --locations=$(REGION)
+	$(SCRIPTS) scripts/gcp_ops.py create-secret
 
 create-job:
-	gcloud run jobs create $(IMAGE_NAME) \
-	  --image=$(IMAGE_URI) \
-	  --region=$(REGION) \
-	  --set-env-vars="ELASTIC_CLOUD_URL=$(ELASTIC_CLOUD_URL)" \
-	  --set-secrets="ELASTIC_API_KEY=elastic-api-key:latest" \
-	  --task-timeout=60s \
-	  --max-retries=0 \
-	|| gcloud run jobs update $(IMAGE_NAME) \
-	  --image=$(IMAGE_URI) \
-	  --region=$(REGION) \
-	  --set-env-vars="ELASTIC_CLOUD_URL=$(ELASTIC_CLOUD_URL)" \
-	  --set-secrets="ELASTIC_API_KEY=elastic-api-key:latest" \
-	  --task-timeout=60s \
-	  --max-retries=0
+	$(SCRIPTS) scripts/gcp_ops.py create-job
 
 execute:
-	gcloud run jobs execute $(IMAGE_NAME) \
-	  --region=$(REGION) \
-	  --wait
+	$(SCRIPTS) scripts/gcp_ops.py execute
 
 logs:
-	gcloud logging read \
-	  "resource.type=cloud_run_job AND resource.labels.job_name=$(IMAGE_NAME)" \
-	  --limit=50 \
-	  --format="value(textPayload)" \
-	  --project=$(PROJECT_ID)
+	$(SCRIPTS) scripts/gcp_ops.py logs
 
 deploy:
 	$(MAKE) push
 	$(MAKE) create-secret
 	$(MAKE) create-job
 
+cleanup-gcp:
+	$(SCRIPTS) scripts/gcp_ops.py cleanup
+
 # ===== Terraform =====
 
 tf-init:
-	cd terraform && terraform init
+	$(SCRIPTS) scripts/tf_ops.py init
 
 tf-plan:
-	cd terraform && terraform plan -var-file="terraform.tfvars"
+	$(SCRIPTS) scripts/tf_ops.py plan
 
 tf-apply:
-	cd terraform && terraform apply -var-file="terraform.tfvars"
+	$(SCRIPTS) scripts/tf_ops.py apply
+
+tf-import:
+	$(SCRIPTS) scripts/tf_ops.py import
 
 tf-destroy:
-	cd terraform && terraform destroy -var-file="terraform.tfvars"
-
-# ===== クリーンアップ =====
-
-cleanup-gcp:
-	gcloud run jobs delete $(IMAGE_NAME) --region=$(REGION) --quiet
-	gcloud artifacts docker images delete $(IMAGE_URI) --quiet
-	gcloud secrets delete elastic-api-key --quiet
+	$(SCRIPTS) scripts/tf_ops.py destroy
 
 # ===== ヘルプ =====
 
@@ -132,6 +111,7 @@ help:
 	@echo "  make tf-init      terraform init"
 	@echo "  make tf-plan      差分確認"
 	@echo "  make tf-apply     適用"
+	@echo "  make tf-import    既存リソースをstateにimport"
 	@echo "  make tf-destroy   全リソース削除"
 	@echo ""
 	@echo "クリーンアップ:"
