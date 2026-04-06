@@ -1,15 +1,28 @@
 variable "project_id" {
-  default = "mlops-dev-a"
+  description = "GCPプロジェクトID"
 }
 
 variable "region" {
-  default = "asia-northeast1"
+  description = "GCPリージョン"
+}
+
+variable "deployment_name" {
+  description = "Elastic Cloudデプロイメント名"
+}
+
+variable "job_name" {
+  description = "Cloud Run Job名"
 }
 
 variable "repo_name" {
-  default = "mlops-dev-a-docker"
+  description = "Artifact Registryリポジトリ名"
 }
 
-variable "bucket_name" {
-  default = "mlops-dev-a-data"
+variable "secret_name" {
+  description = "Secret Manager シークレット名（ES接続情報JSON格納先）"
+}
+
+variable "elastic_cloud_api_key" {
+  description = "Elastic Cloud Org APIキー（プロバイダ認証用）"
+  sensitive   = true
 }

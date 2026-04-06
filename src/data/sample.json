@@ -1,0 +1,5 @@
+[
+  {"title": "Elasticsearch入門", "content": "Elasticsearchは分散型の検索・分析エンジンです。", "tag": "search"},
+  {"title": "Terraform入門", "content": "Terraformはインフラをコードとして管理するIaCツールです。", "tag": "infra"},
+  {"title": "Cloud Run概要", "content": "Cloud RunはGCPのサーバーレスコンテナ実行環境です。", "tag": "gcp"}
+]
